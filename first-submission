@@ -1,0 +1,63 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from os.path import join
+import pandas as pd
+from scipy.signal import savgol_filter, detrend
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, plot_confusion_matrix
+%matplotlib inline
+%config Completer.use_jedi = False 
+pd.set_option("display.max_rows", 999)
+pd.set_option("display.max_columns", 999)
+
+MPA_SERVER = "//opssrv/UserArea/Shared/Mission Assurance/MPA/1. Data Analytics/9. Project Portfolio"
+OPEN_DIR = "5. Open"
+MPA_DIR = join(MPA_SERVER, OPEN_DIR)
+PRJ_DIR = "9999_AI_Challenge"
+WRK_DIR = join(MPA_DIR, PRJ_DIR)
+DATA_DIR = join(WRK_DIR, "Data")
+
+train_df = pd.read_csv(join(DATA_DIR, "train_with_labels.csv"))
+train_df.shape
+
+train_df.head()
+
+feature_cols = ["feature_{}".format(i) for i in range(1,513)]
+test_df = pd.read_csv(join(DATA_DIR, "testData.csv"), names=feature_cols)
+print(test_df.shape)
+test_df.head()
+
+detrend_test_df = test_df.copy().apply(
+    lambda x: pd.Series(savgol_filter(x, 9, polyorder=2, deriv=1)).explode(), axis=1)
+
+detrend_test_df.columns=feature_cols
+detrend_test_df.head()
+
+X = train_df.iloc[:, :-1]
+detrend_X = X.copy().apply(lambda x: pd.Series(savgol_filter(x, 9, polyorder=2, deriv=1)).explode(), axis=1)
+detrend_X.columns=feature_cols
+y = train_df['classification']
+
+forest = RandomForestClassifier(n_estimators=100, random_state=42)
+forest.fit(detrend_X, y)
+# save this to csv with your name inserted
+predictions = forest.predict(detrend_test_df)
+predictions.to_csv(join(DATA_DIR, "predictions_your_name_here.csv"))
+
+X_train, X_test, y_train, y_test = train_test_split(detrend_X, y, stratify=y, test_size=0.2, random_state=42)
+
+forest = RandomForestClassifier(n_estimators=100, random_state=42)
+forest.fit(X_train,y_train)
+predictions = forest.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, predictions))
+matrix = confusion_matrix(y_test, predictions)
+
+fig, ax = plt.subplots(figsize=(20, 20))
+plot_confusion_matrix(forest, X_test, y_test, normalize='true', 
+                      values_format='.2f', cmap=plt.cm.Blues, ax=ax)
+plt.show();
+
+target_names = [i for i in range(0,20)]
+pd.DataFrame(index=target_names, data=matrix.diagonal()/matrix.sum(axis=1), columns=["Accuracy"])
