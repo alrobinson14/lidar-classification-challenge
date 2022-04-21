@@ -1,0 +1,42 @@
+from sklearn.ensemble import HistGradientBoostingClassifier
+from os.path import join
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+ 
+
+MPA_SERVER = "//opssrv/UserArea/Shared/Mission Assurance/MPA/1. Data Analytics/9. Project Portfolio"
+OPEN_DIR = "5. Open"
+MPA_DIR = join(MPA_SERVER, OPEN_DIR)
+PRJ_DIR = "9999_AI_Challenge"
+WRK_DIR = join(MPA_DIR, PRJ_DIR)
+DATA_DIR = join(WRK_DIR, "Data")
+sample_df = pd.read_csv(join(DATA_DIR, "baby_train_with_labels_savgol_filter_9smooth_poly2_2nd_deriv.csv"))
+X_train = sample_df.iloc[:, :-1]
+y = sample_df['classification']
+
+ 
+
+X_train, X_test, y_train, y_test = train_test_split(X_train, y, stratify=y, test_size=0.2, random_state=42)
+
+ 
+
+clf = HistGradientBoostingClassifier(random_state=42)
+clf.fit(X_train, y_train)
+predictions = clf.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, predictions))
+
+from sklearn.metrics import confusion_matrix, plot_confusion_matrix
+%matplotlib inline
+ 
+matrix = confusion_matrix(y_test, predictions)
+
+ 
+
+fig, ax = plt.subplots(figsize=(20, 20))
+plot_confusion_matrix(clf, X_test, y_test, normalize='true', 
+                      values_format='.2f', cmap=plt.cm.Blues, ax=ax)
+plt.show();
+
+target_names = [i for i in range(0,20)]
+pd.DataFrame(index=target_names, data=matrix.diagonal()/matrix.sum(axis=1), columns=["Accuracy"])
